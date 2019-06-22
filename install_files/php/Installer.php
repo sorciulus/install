@@ -35,23 +35,25 @@ class Installer
         $this->baseDirectory = PATH_INSTALL;
         $this->tempDirectory = PATH_INSTALL . '/install_files/temp'; // @todo Use sys_get_temp_dir()
         $this->configDirectory = $this->baseDirectory . '/config';
-        $this->logFile = PATH_INSTALL . '/install_files/install.log';
+        $this->logFile = PATH_INSTALL_LOG;
         $this->logPost();
 
         if (!is_null($handler = $this->post('handler'))) {
-            if (!strlen($handler)) exit;
+            if (!strlen($handler)) {
+                exit;
+            }
 
             try {
-                if (!preg_match('/^on[A-Z]{1}[\w+]*$/', $handler))
+                if (!preg_match('/^on[A-Z]{1}[\w+]*$/', $handler)) {
                     throw new Exception(sprintf('Invalid handler: %s', $this->e($handler)));
+                }
 
                 if (method_exists($this, $handler) && ($result = $this->$handler()) !== null) {
                     $this->log('Execute handler (%s): %s', $handler, print_r($result, true));
                     header('Content-Type: application/json');
                     die(json_encode($result));
                 }
-            }
-            catch (Exception $ex) {
+            } catch (Exception $ex) {
                 header($_SERVER['SERVER_PROTOCOL'] . ' 500 Internal Server Error', true, 500);
                 $this->log('Handler error (%s): %s', $handler, $ex->getMessage());
                 $this->log(array('Trace log:', '%s'), $ex->getTraceAsString());
@@ -107,11 +109,13 @@ class Installer
 
     protected function onValidateDatabase()
     {
-        if ($this->post('db_type') != 'sqlite' && !strlen($this->post('db_host')))
+        if ($this->post('db_type') != 'sqlite' && !strlen($this->post('db_host'))) {
             throw new InstallerException('Please specify a database host', 'db_host');
+        }
 
-        if (!strlen($this->post('db_name')))
+        if (!strlen($this->post('db_name'))) {
             throw new InstallerException('Please specify the database name', 'db_name');
+        }
 
         $config = array_merge(array(
             'type' => null,
@@ -134,13 +138,17 @@ class Installer
         switch ($type) {
             case 'mysql':
                 $dsn = 'mysql:host='.$host.';dbname='.$name;
-                if ($port) $dsn .= ";port=".$port;
+                if ($port) {
+                    $dsn .= ";port=".$port;
+                }
                 break;
 
             case 'pgsql':
                 $_host = ($host) ? 'host='.$host.';' : '';
                 $dsn = 'pgsql:'.$_host.'dbname='.$name;
-                if ($port) $dsn .= ";port=".$port;
+                if ($port) {
+                    $dsn .= ";port=".$port;
+                }
                 break;
 
             case 'sqlite':
@@ -153,16 +161,14 @@ class Installer
                 $_port = $port ? ','.$port : '';
                 if (in_array('dblib', $availableDrivers)) {
                     $dsn = 'dblib:host='.$host.$_port.';dbname='.$name;
-                }
-                else {
+                } else {
                     $dsn = 'sqlsrv:Server='.$host.(empty($port) ? '':','.$_port).';Database='.$name;
                 }
             break;
         }
         try {
             $db = new PDO($dsn, $user, $pass, array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION));
-        }
-        catch (PDOException $ex) {
+        } catch (PDOException $ex) {
             throw new Exception('Connection failed: ' . $ex->getMessage());
         }
 
@@ -171,19 +177,18 @@ class Installer
          */
         if ($type == 'sqlite') {
             $fetch = $db->query("select name from sqlite_master where type='table'", PDO::FETCH_NUM);
-        }
-        elseif ($type == 'pgsql') {
+        } elseif ($type == 'pgsql') {
             $fetch = $db->query("select table_name from information_schema.tables where table_schema = 'public'", PDO::FETCH_NUM);
-        }
-        elseif ($type === 'sqlsrv') {
+        } elseif ($type === 'sqlsrv') {
             $fetch = $db->query("select [table_name] from information_schema.tables", PDO::FETCH_NUM);
-        }
-        else {
+        } else {
             $fetch = $db->query('show tables', PDO::FETCH_NUM);
         }
 
         $tables = 0;
-        while ($result = $fetch->fetch()) $tables++;
+        while ($result = $fetch->fetch()) {
+            $tables++;
+        }
 
         if ($tables > 0) {
             throw new Exception(sprintf('Database "%s" is not empty. Please empty the database or specify another database.', $this->e($name)));
@@ -192,54 +197,69 @@ class Installer
 
     protected function onValidateAdminAccount()
     {
-        if (!strlen($this->post('admin_first_name')))
+        if (!strlen($this->post('admin_first_name'))) {
             throw new InstallerException('Please specify the administrator first name', 'admin_first_name');
+        }
 
-        if (!strlen($this->post('admin_last_name')))
+        if (!strlen($this->post('admin_last_name'))) {
             throw new InstallerException('Please specify the administrator last name', 'admin_last_name');
+        }
 
-        if (!strlen($this->post('admin_email')))
+        if (!strlen($this->post('admin_email'))) {
             throw new InstallerException('Please specify administrator email address', 'admin_email');
+        }
 
-        if (!filter_var($this->post('admin_email'), FILTER_VALIDATE_EMAIL))
+        if (!filter_var($this->post('admin_email'), FILTER_VALIDATE_EMAIL)) {
             throw new InstallerException('Please specify valid email address', 'admin_email');
+        }
 
-        if (!strlen($this->post('admin_password')))
+        if (!strlen($this->post('admin_password'))) {
             throw new InstallerException('Please specify password', 'admin_password');
+        }
 
-        if (strlen($this->post('admin_password')) < 4)
+        if (strlen($this->post('admin_password')) < 4) {
             throw new InstallerException('Please specify password length more than 4 characters', 'admin_password');
+        }
 
-        if (strlen($this->post('admin_password')) > 255)
+        if (strlen($this->post('admin_password')) > 255) {
             throw new InstallerException('Please specify password length less than 64 characters', 'admin_password');
+        }
 
-        if (!strlen($this->post('admin_confirm_password')))
+        if (!strlen($this->post('admin_confirm_password'))) {
             throw new InstallerException('Please confirm chosen password', 'admin_confirm_password');
+        }
 
-        if (strcmp($this->post('admin_password'), $this->post('admin_confirm_password')))
+        if (strcmp($this->post('admin_password'), $this->post('admin_confirm_password'))) {
             throw new InstallerException('Specified password does not match the confirmed password', 'admin_password');
+        }
     }
 
     protected function onValidateAdvancedConfig()
     {
-        if (!strlen($this->post('encryption_code')))
+        if (!strlen($this->post('encryption_code'))) {
             throw new InstallerException('Please specify encryption key', 'encryption_code');
+        }
 
         $validKeyLengths = [32];
-        if (!in_array(strlen($this->post('encryption_code')), $validKeyLengths))
+        if (!in_array(strlen($this->post('encryption_code')), $validKeyLengths)) {
             throw new InstallerException('The encryption key should be of a valid length ('.implode(', ', $validKeyLengths).').', 'encryption_code');
+        }
 
-        if (!strlen($this->post('folder_mask')))
+        if (!strlen($this->post('folder_mask'))) {
             throw new InstallerException('Please specify folder permission mask', 'folder_mask');
+        }
 
-        if (!strlen($this->post('file_mask')))
+        if (!strlen($this->post('file_mask'))) {
             throw new InstallerException('Please specify file permission mask', 'file_mask');
+        }
 
-        if (!preg_match("/^[0-9]{3}$/", $this->post('folder_mask')) || $this->post('folder_mask') > 777)
+        if (!preg_match("/^[0-9]{3}$/", $this->post('folder_mask')) || $this->post('folder_mask') > 777) {
             throw new InstallerException('Please specify a valid folder permission mask', 'folder_mask');
+        }
 
-        if (!preg_match("/^[0-9]{3}$/", $this->post('file_mask')) || $this->post('file_mask') > 777)
+        if (!preg_match("/^[0-9]{3}$/", $this->post('file_mask')) || $this->post('file_mask') > 777) {
             throw new InstallerException('Please specify a valid file permission mask', 'file_mask');
+        }
     }
 
     protected function onGetPopularPlugins()
@@ -290,19 +310,24 @@ class Installer
                 $plugins = $this->post('plugins', array());
                 $pluginCodes = array();
                 foreach ($plugins as $plugin) {
-                    if (isset($plugin['code'])) $pluginCodes[] = $plugin['code'];
+                    if (isset($plugin['code'])) {
+                        $pluginCodes[] = $plugin['code'];
+                    }
                 }
                 $params['plugins'] = $pluginCodes;
 
                 $themes = $this->post('themes', array());
                 $themeCodes = array();
                 foreach ($themes as $theme) {
-                    if (isset($theme['code'])) $themeCodes[] = $theme['code'];
+                    if (isset($theme['code'])) {
+                        $themeCodes[] = $theme['code'];
+                    }
                 }
                 $params['themes'] = $themeCodes;
 
-                if ($project = $this->post('project_id', false))
+                if ($project = $this->post('project_id', false)) {
                     $params['project'] = $project;
+                }
 
                 $result = $this->requestServerData('core/install', $params);
                 break;
@@ -314,12 +339,14 @@ class Installer
 
             case 'downloadPlugin':
                 $name = $this->post('name');
-                if (!$name)
+                if (!$name) {
                     throw new Exception('Plugin download failed, missing name');
+                }
 
                 $params = array('name' => $name);
-                if ($project = $this->post('project_id', false))
+                if ($project = $this->post('project_id', false)) {
                     $params['project'] = $project;
+                }
 
                 $hash = $this->getHashFromMeta($name, 'plugin');
                 $this->requestServerFile($name.'-plugin', $hash, 'plugin/get', $params);
@@ -327,12 +354,14 @@ class Installer
 
             case 'downloadTheme':
                 $name = $this->post('name');
-                if (!$name)
+                if (!$name) {
                     throw new Exception('Theme download failed, missing name');
+                }
 
                 $params = array('name' => $name);
-                if ($project = $this->post('project_id', false))
+                if ($project = $this->post('project_id', false)) {
                     $params['project'] = $project;
+                }
 
                 $hash = $this->getHashFromMeta($name, 'theme');
                 $this->requestServerFile($name.'-theme', $hash, 'theme/get', $params);
@@ -342,13 +371,15 @@ class Installer
                 $this->moveHtaccess(null, 'installer');
 
                 $result = $this->unzipFile('core');
-                if (!$result)
+                if (!$result) {
                     throw new Exception('Unable to open application archive file');
+                }
 
                 if (!file_exists(PATH_INSTALL . '/index.php')
                         || !is_dir(PATH_INSTALL . '/modules')
-                        || !is_dir(PATH_INSTALL . '/vendor'))
+                        || !is_dir(PATH_INSTALL . '/vendor')) {
                     throw new Exception('Could not extract application files');
+                }
 
                 $this->moveHtaccess(null, 'october');
                 $this->moveHtaccess('installer', null);
@@ -356,22 +387,26 @@ class Installer
 
             case 'extractPlugin':
                 $name = $this->post('name');
-                if (!$name)
+                if (!$name) {
                     throw new Exception('Plugin download failed, missing name');
+                }
 
                 $result = $this->unzipFile($name.'-plugin', 'plugins/');
-                if (!$result)
+                if (!$result) {
                     throw new Exception('Unable to open plugin archive file');
+                }
                 break;
 
             case 'extractTheme':
                 $name = $this->post('name');
-                if (!$name)
+                if (!$name) {
                     throw new Exception('Theme download failed, missing name');
+                }
 
                 $result = $this->unzipFile($name.'-theme', 'themes/');
-                if (!$result)
+                if (!$result) {
                     throw new Exception('Unable to open theme archive file');
+                }
                 break;
 
             case 'setupConfig':
@@ -391,6 +426,7 @@ class Installer
                 $this->moveHtaccess(null, 'installer');
                 $this->moveHtaccess('october', null);
                 $this->cleanUp();
+                $this->cleanUpInstaller();
                 break;
         }
 
@@ -416,8 +452,7 @@ class Installer
         $activeTheme = $this->post('active_theme');
         if ($activeTheme) {
             $activeTheme = strtolower(str_replace('.', '-', $activeTheme));
-        }
-        else {
+        } else {
             $activeTheme = 'demo';
         }
 
@@ -495,8 +530,9 @@ class Installer
                 break;
         }
 
-        if (in_array($type, array('mysql', 'sqlite', 'pgsql', 'sqlsrv')))
+        if (in_array($type, array('mysql', 'sqlite', 'pgsql', 'sqlsrv'))) {
             $result['default'] = $type;
+        }
 
         return $result;
     }
@@ -527,8 +563,9 @@ class Installer
 
     public function setProjectDetails()
     {
-        if (!$projectId = $this->post('code'))
+        if (!$projectId = $this->post('code')) {
             return;
+        }
 
         $this->bootFramework();
 
@@ -556,13 +593,18 @@ class Installer
     protected function moveHtaccess($old = null, $new = null)
     {
         $oldFile = $this->baseDirectory . '/.htaccess';
-        if ($old) $oldFile .= '.' . $old;
+        if ($old) {
+            $oldFile .= '.' . $old;
+        }
 
         $newFile = $this->baseDirectory . '/.htaccess';
-        if ($new) $newFile .= '.' . $new;
+        if ($new) {
+            $newFile .= '.' . $new;
+        }
 
-        if (file_exists($oldFile))
+        if (file_exists($oldFile)) {
             rename($oldFile, $newFile);
+        }
     }
 
     protected function unzipFile($fileCode, $directory = null)
@@ -572,11 +614,13 @@ class Installer
 
         $this->log('Extracting file (%s): %s', $fileCode, basename($source));
 
-        if ($directory)
+        if ($directory) {
             $destination .= '/' . $directory;
+        }
 
-        if (!file_exists($destination))
-            mkdir($destination, 0777, true); // @todo Use config
+        if (!file_exists($destination)) {
+            mkdir($destination, 0777, true);
+        } // @todo Use config
 
         $zip = new ZipArchive;
         if ($zip->open($source) === true) {
@@ -619,16 +663,21 @@ class Installer
 
     public function logPost()
     {
-        if (!isset($_POST) || !count($_POST)) return;
+        if (!isset($_POST) || !count($_POST)) {
+            return;
+        }
         $postData = $_POST;
 
-        if (array_key_exists('disableLog', $postData))
+        if (array_key_exists('disableLog', $postData)) {
             $postData = array('disableLog' => true);
+        }
 
         /*
          * Sensitive data fields
          */
-        if (isset($postData['admin_email'])) $postData['admin_email'] = '*******@*****.com';
+        if (isset($postData['admin_email'])) {
+            $postData['admin_email'] = '*******@*****.com';
+        }
         $fieldsToErase = array(
             'encryption_code',
             'admin_password',
@@ -637,7 +686,9 @@ class Installer
             'project_id',
         );
         foreach ($fieldsToErase as $field) {
-            if (isset($postData[$field])) $postData[$field] = '*******';
+            if (isset($postData[$field])) {
+                $postData[$field] = '*******';
+            }
         }
 
         file_put_contents($this->logFile, '.============================ POST REQUEST ==========================.' . PHP_EOL, FILE_APPEND);
@@ -649,8 +700,9 @@ class Installer
         $args = func_get_args();
         $message = array_shift($args);
 
-        if (is_array($message))
+        if (is_array($message)) {
             $message = implode(PHP_EOL, $message);
+        }
 
         $message = "[" . date("Y/m/d h:i:s", time()) . "] " . vsprintf($message, $args) . PHP_EOL;
         file_put_contents($this->logFile, $message, FILE_APPEND);
@@ -663,14 +715,16 @@ class Installer
     protected function bootFramework()
     {
         $autoloadFile = $this->baseDirectory . '/bootstrap/autoload.php';
-        if (!file_exists($autoloadFile))
+        if (!file_exists($autoloadFile)) {
             throw new Exception('Unable to find autoloader: ~/bootstrap/autoload.php');
+        }
 
         require $autoloadFile;
 
         $appFile = $this->baseDirectory . '/bootstrap/app.php';
-        if (!file_exists($appFile))
+        if (!file_exists($appFile)) {
             throw new Exception('Unable to find app loader: ~/bootstrap/app.php');
+        }
 
         $app = require_once $appFile;
         $kernel = $app->make('Illuminate\Contracts\Console\Kernel');
@@ -696,21 +750,22 @@ class Installer
             $this->log('Request information: %s', print_r(curl_getinfo($curl), true));
 
             curl_close($curl);
-        }
-        catch (Exception $ex) {
+        } catch (Exception $ex) {
             $this->log('Failed to get server data (ignored): ' . $ex->getMessage());
         }
 
-        if ($error !== null)
+        if ($error !== null) {
             throw new Exception('Server responded with error: ' . $error);
+        }
 
-        if (!$result || !strlen($result))
+        if (!$result || !strlen($result)) {
             throw new Exception('Server responded had no response.');
+        }
 
         try {
             $_result = @json_decode($result, true);
+        } catch (Exception $ex) {
         }
-        catch (Exception $ex) {}
 
         if (!is_array($_result)) {
             $this->log('Server response: '. $result);
@@ -747,14 +802,14 @@ class Installer
 
             curl_close($curl);
             fclose($stream);
-        }
-        catch (Exception $ex) {
+        } catch (Exception $ex) {
             $this->log('Failed to get server delivery: ' . $ex->getMessage());
             throw new Exception('Server failed to deliver the package');
         }
 
-        if ($error !== null)
+        if ($error !== null) {
             throw new Exception('Server responded with error: ' . $error);
+        }
 
         $fileHash = md5_file($filePath);
         if ($expectedHash != $fileHash) {
@@ -793,7 +848,9 @@ class Installer
     {
         if (array_key_exists($var, $_REQUEST)) {
             $result = $_REQUEST[$var];
-            if (is_string($result)) $result = trim($result);
+            if (is_string($result)) {
+                $result = trim($result);
+            }
             return $result;
         }
 
@@ -805,19 +862,23 @@ class Installer
         $meta = $this->post('meta');
         $packageType .= 's';
 
-        if ($targetCode == 'core')
+        if ($targetCode == 'core') {
             return (isset($meta['core']['hash'])) ? $meta['core']['hash'] : null;
+        }
 
-        if (!isset($meta[$packageType]))
+        if (!isset($meta[$packageType])) {
             return null;
+        }
 
         $collection = $meta[$packageType];
-        if (!is_array($collection))
+        if (!is_array($collection)) {
             return null;
+        }
 
         foreach ($collection as $code => $hash) {
-            if ($code == $targetCode)
+            if ($code == $targetCode) {
                 return $hash;
+            }
         }
 
         return null;
@@ -829,8 +890,7 @@ class Installer
             $baseUrl = !empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off' ? 'https' : 'http';
             $baseUrl .= '://'. $_SERVER['HTTP_HOST'];
             $baseUrl .= str_replace(basename($_SERVER['SCRIPT_NAME']), '', $_SERVER['SCRIPT_NAME']);
-        }
-        else {
+        } else {
             $baseUrl = 'http://localhost/';
         }
 
@@ -840,21 +900,76 @@ class Installer
     public function cleanUp()
     {
         $path = $this->tempDirectory;
-        if (!file_exists($path))
+        $this->log('Cleaning up directory: %s', $path);
+
+        if (!file_exists($path)) {
             return;
+        }
 
         $d = dir($path);
         while (($entry = $d->read()) !== false) {
             $filePath = $path.'/'.$entry;
 
-            if ($entry == '.' || $entry == '..' || $entry == '.htaccess' || is_dir($filePath))
+            if ($entry == '.' || $entry == '..' || $entry == '.htaccess' || is_dir($filePath)) {
                 continue;
+            }
 
             $this->log('Cleaning up file: %s', $entry);
             @unlink($filePath);
         }
 
         $d->close();
+    }
+
+    public function cleanUpInstaller()
+    {
+        $this->log('October directory installer : %s', OCTOBER_INSTALLER_FOLDER);
+        $this->log('October file installer : %s', OCTOBER_INSTALLER_FILE);
+
+        $filesToRemove = [];
+        $dirsToRemove  = [];
+        $installDir = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(OCTOBER_INSTALLER_FOLDER));
+        foreach ($installDir as $fileInfo) {
+            if ($fileInfo->getPathName() == '..') {
+                continue;
+            }
+
+            if ($fileInfo->isDir() && $fileInfo->getFilename() !== "..") {
+                $dirsToRemove[] = $fileInfo->getRealPath();
+                continue;
+            }
+
+            if ($fileInfo->isFile()) {
+                $filesToRemove[] = $fileInfo->getRealPath();
+                continue;
+            }
+        }
+
+        rsort($dirsToRemove);
+
+        foreach ($filesToRemove as $file) {
+            if (file_exists($file)) {
+                $this->log('Cleanup installer file : %s', $file);
+                unlink($file);
+            }
+        }
+        
+        foreach ($dirsToRemove as $dir) {
+            if (is_dir($dir)) {
+                $this->log('Cleanup installer directory : %s', $dir);
+                rmdir($dir);
+            }
+        }
+
+        if (is_dir(OCTOBER_INSTALLER_FOLDER)) {
+            $this->log('Cleanup installer directory : %s', $dir);
+            rmdir(OCTOBER_INSTALLER_FOLDER);
+        }
+
+        if (file_exists(OCTOBER_INSTALLER_FILE)) {
+            $this->log('Cleanup installer file : %s', OCTOBER_INSTALLER_FILE);
+            unlink(OCTOBER_INSTALLER_FILE);
+        }
     }
 
     public function e($value)
@@ -864,12 +979,14 @@ class Installer
 
     protected function validateSqliteFile($filename)
     {
-        if (file_exists($filename))
+        if (file_exists($filename)) {
             return;
+        }
 
         $directory = dirname($filename);
-        if (!is_dir($directory))
+        if (!is_dir($directory)) {
             mkdir($directory, 0777, true);
+        }
 
         new PDO('sqlite:'.$filename);
     }

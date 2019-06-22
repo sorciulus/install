@@ -49,7 +49,10 @@ else {
  * Constants
  */
 define('PATH_INSTALL', str_replace("\\", "/", realpath(dirname(__FILE__)."/../../")));
+define('PATH_INSTALL_LOG', PATH_INSTALL.DIRECTORY_SEPARATOR.'install.log');
 define('OCTOBER_GATEWAY', 'http://gateway.octobercms.com/api');
+define('OCTOBER_INSTALLER_FOLDER', PATH_INSTALL.DIRECTORY_SEPARATOR.'install_files');
+define('OCTOBER_INSTALLER_FILE', PATH_INSTALL.DIRECTORY_SEPARATOR.'install.php');
 
 /*
  * Address timeout limits
